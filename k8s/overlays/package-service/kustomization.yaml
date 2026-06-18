@@ -1,0 +1,18 @@
+namePrefix: package-
+
+resources:
+  - ../../base
+
+labels:
+  - pairs:
+      app.kubernetes.io/instance: package-postgres
+    includeSelectors: true
+
+secretGenerator:
+  - name: postgres-secret
+    namespace: infra
+    envs:
+      - secret.env
+
+generatorOptions:
+  disableNameSuffixHash: true

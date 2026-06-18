@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+  namespace: infra
+  labels:
+    app.kubernetes.io/name: postgres
+data:
+  01-create-databases.sh: |
+    #!/usr/bin/env sh
+    set -eu
+
+    psql \
+      -v ON_ERROR_STOP=1 \
+      -v app_db_user="$APP_DB_USER" \
+      -v app_db_password="$APP_DB_PASSWORD" \
+      --username "$POSTGRES_USER" \
+      --dbname "$POSTGRES_DB" <<-SQL
+      CREATE USER :"app_db_user" WITH PASSWORD :'app_db_password';
+    SQL
+
+    for db in $(printf '%s' "$SERVICE_DATABASES" | tr ',' ' '); do
+      psql \
+        -v ON_ERROR_STOP=1 \
+        -v app_db_user="$APP_DB_USER" \
+        --username "$POSTGRES_USER" \
+        --dbname "$POSTGRES_DB" <<-SQL
+        CREATE DATABASE "$db" OWNER :"app_db_user";
+      SQL
+    done
