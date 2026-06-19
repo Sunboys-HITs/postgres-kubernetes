@@ -25,9 +25,22 @@ jobs:
         env:
           KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
         run: |
+          test -n "$KUBECONFIG_B64" || {
+            echo 'KUBECONFIG_B64 GitHub Actions secret is not configured' >&2
+            exit 1
+          }
           mkdir -p "$HOME/.kube"
-          printf '%s' "$KUBECONFIG_B64" | base64 -d > "$HOME/.kube/config"
+          printf '%s' "$KUBECONFIG_B64" | base64 --decode > "$HOME/.kube/config"
           chmod 600 "$HOME/.kube/config"
+          test -s "$HOME/.kube/config" || {
+            echo 'Decoded kubeconfig is empty' >&2
+            exit 1
+          }
+
+      - name: Check cluster connection
+        run: |
+          kubectl config current-context
+          kubectl cluster-info
 
       - name: Configure database credentials
         env:
@@ -66,11 +79,20 @@ jobs:
         run: |
           kubectl apply -k k8s/overlays/auth-service
           kubectl apply -k k8s/overlays/main-service
+          kubectl -n infra rollout restart statefulset/auth-postgres
+          kubectl -n infra rollout restart statefulset/main-postgres
 
       - name: Wait for rollouts
         run: |
           kubectl -n infra rollout status statefulset/auth-postgres --timeout=300s
           kubectl -n infra rollout status statefulset/main-postgres --timeout=300s
+
+      - name: Reconcile database users and databases
+        run: |
+          kubectl -n infra exec statefulset/auth-postgres -- \
+            /docker-entrypoint-initdb.d/01-ensure-databases.sh
+          kubectl -n infra exec statefulset/main-postgres -- \
+            /docker-entrypoint-initdb.d/01-ensure-databases.sh
 
       - name: Show database resources
         if: always()

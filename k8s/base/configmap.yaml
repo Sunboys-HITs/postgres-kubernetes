@@ -6,7 +6,7 @@ metadata:
   labels:
     app.kubernetes.io/name: postgres
 data:
-  01-create-databases.sh: |
+  01-ensure-databases.sh: |
     #!/usr/bin/env sh
     set -eu
 
@@ -16,15 +16,42 @@ data:
       -v app_db_password="$APP_DB_PASSWORD" \
       --username "$POSTGRES_USER" \
       --dbname "$POSTGRES_DB" <<-SQL
-      CREATE USER :"app_db_user" WITH PASSWORD :'app_db_password';
+      SELECT format(
+        'CREATE ROLE %I LOGIN PASSWORD %L',
+        :'app_db_user',
+        :'app_db_password'
+      )
+      WHERE NOT EXISTS (
+        SELECT FROM pg_catalog.pg_roles WHERE rolname = :'app_db_user'
+      ) \gexec
+
+      SELECT format(
+        'ALTER ROLE %I LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION',
+        :'app_db_user',
+        :'app_db_password'
+      ) \gexec
     SQL
 
     for db in $(printf '%s' "$SERVICE_DATABASES" | tr ',' ' '); do
       psql \
         -v ON_ERROR_STOP=1 \
         -v app_db_user="$APP_DB_USER" \
+        -v db_name="$db" \
         --username "$POSTGRES_USER" \
         --dbname "$POSTGRES_DB" <<-SQL
-        CREATE DATABASE "$db" OWNER :"app_db_user";
+        SELECT format(
+          'CREATE DATABASE %I OWNER %I',
+          :'db_name',
+          :'app_db_user'
+        )
+        WHERE NOT EXISTS (
+          SELECT FROM pg_catalog.pg_database WHERE datname = :'db_name'
+        ) \gexec
+
+        SELECT format(
+          'ALTER DATABASE %I OWNER TO %I',
+          :'db_name',
+          :'app_db_user'
+        ) \gexec
       SQL
     done
