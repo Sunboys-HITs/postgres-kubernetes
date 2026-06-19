@@ -1,11 +1,11 @@
-namePrefix: package-
+namePrefix: main-
 
 resources:
   - ../../base
 
 labels:
   - pairs:
-      app.kubernetes.io/instance: package-postgres
+      app.kubernetes.io/instance: main-postgres
     includeSelectors: true
 
 secretGenerator:

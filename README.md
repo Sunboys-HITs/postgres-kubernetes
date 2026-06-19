@@ -18,7 +18,7 @@ Kubernetes manifests for running PostgreSQL as an internal database for SUNBOYS 
 | --- | --- | --- |
 | Shared dev database | `kubectl apply -k k8s/overlays/dev` | `postgres.infra.svc.cluster.local:5432` |
 | Auth service database | `kubectl apply -k k8s/overlays/auth-service` | `auth-postgres.infra.svc.cluster.local:5432` |
-| Package service database | `kubectl apply -k k8s/overlays/package-service` | `package-postgres.infra.svc.cluster.local:5432` |
+| Main service database | `kubectl apply -k k8s/overlays/main-service` | `main-postgres.infra.svc.cluster.local:5432` |
 | CI/test database | `kubectl apply -k k8s/overlays/ci` | `ci-postgres.infra.svc.cluster.local:5432` |
 
 ## Deploy
@@ -33,6 +33,21 @@ For a prefixed target, wait for the prefixed StatefulSet:
 ```bash
 kubectl -n infra rollout status statefulset/auth-postgres
 ```
+
+## Automatic Deploy
+
+GitHub Actions deploys both `auth-postgres` and `main-postgres` on every push to
+`master` or `main`. The workflow can also be started manually.
+
+Configure these GitHub Actions repository secrets before the first deployment:
+
+- `KUBECONFIG_B64`: base64-encoded kubeconfig, as used by the service repositories
+- `POSTGRES_ADMIN_PASSWORD`: password for the PostgreSQL administrator
+- `AUTH_DB_PASSWORD`: password for the `auth_service` user
+- `MAIN_DB_PASSWORD`: password for the `main_service` user
+
+The workflow renders both Kustomize overlays, applies them to the `infra`
+namespace, and waits for both StatefulSets to become ready.
 
 ## Create A New Target
 
@@ -78,6 +93,12 @@ Auth service target:
 
 ```text
 Host=auth-postgres.infra.svc.cluster.local;Port=5432;Database=auth_service;Username=auth_service;Password=change_me_auth
+```
+
+Main service target:
+
+```text
+Host=main-postgres.infra.svc.cluster.local;Port=5432;Database=main_service;Username=main_service;Password=change_me_main
 ```
 
 ## Configuration
