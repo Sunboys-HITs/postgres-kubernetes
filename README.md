@@ -46,6 +46,18 @@ Configure these GitHub Actions repository secrets before the first deployment:
 - `AUTH_DB_PASSWORD`: password for the `auth_service` user
 - `MAIN_DB_PASSWORD`: password for the `main_service` user
 
+Create `KUBECONFIG_B64` from a working kubeconfig on Linux/macOS:
+
+```bash
+base64 < ~/.kube/config | tr -d '\n'
+```
+
+On PowerShell:
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("$HOME/.kube/config"))
+```
+
 The workflow renders both Kustomize overlays, applies them to the `infra`
 namespace, and waits for both StatefulSets to become ready.
 
@@ -79,7 +91,10 @@ kubectl apply -k k8s/overlays/my-purpose
 SERVICE_DATABASES=auth_service,package_service,notification_service
 ```
 
-The init script runs only when PostgreSQL initializes an empty data directory. If you change the database list after data already exists, create the database manually or recreate the PVC.
+The init script runs when PostgreSQL initializes an empty data directory. The
+deployment workflow also runs it after every rollout, so missing roles and
+databases are created for existing PVCs. Application roles are kept as login-only
+roles without `CREATEDB`, `CREATEROLE`, or superuser privileges.
 
 ## Connection String
 
