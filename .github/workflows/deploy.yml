@@ -1,0 +1,77 @@
+name: Deploy PostgreSQL
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: postgres-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure kubeconfig
+        env:
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+        run: |
+          mkdir -p "$HOME/.kube"
+          printf '%s' "$KUBECONFIG_B64" | base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+
+      - name: Configure database credentials
+        env:
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+          AUTH_DB_PASSWORD: ${{ secrets.AUTH_DB_PASSWORD }}
+          MAIN_DB_PASSWORD: ${{ secrets.MAIN_DB_PASSWORD }}
+        run: |
+          test -n "$POSTGRES_ADMIN_PASSWORD"
+          test -n "$AUTH_DB_PASSWORD"
+          test -n "$MAIN_DB_PASSWORD"
+
+          printf '%s\n' \
+            'POSTGRES_DB=postgres' \
+            'POSTGRES_USER=postgres' \
+            "POSTGRES_PASSWORD=$POSTGRES_ADMIN_PASSWORD" \
+            'APP_DB_USER=auth_service' \
+            "APP_DB_PASSWORD=$AUTH_DB_PASSWORD" \
+            'SERVICE_DATABASES=auth_service' \
+            > k8s/overlays/auth-service/secret.env
+
+          printf '%s\n' \
+            'POSTGRES_DB=postgres' \
+            'POSTGRES_USER=postgres' \
+            "POSTGRES_PASSWORD=$POSTGRES_ADMIN_PASSWORD" \
+            'APP_DB_USER=main_service' \
+            "APP_DB_PASSWORD=$MAIN_DB_PASSWORD" \
+            'SERVICE_DATABASES=main_service' \
+            > k8s/overlays/main-service/secret.env
+
+      - name: Validate manifests
+        run: |
+          kubectl kustomize k8s/overlays/auth-service > /dev/null
+          kubectl kustomize k8s/overlays/main-service > /dev/null
+
+      - name: Deploy databases
+        run: |
+          kubectl apply -k k8s/overlays/auth-service
+          kubectl apply -k k8s/overlays/main-service
+
+      - name: Wait for rollouts
+        run: |
+          kubectl -n infra rollout status statefulset/auth-postgres --timeout=300s
+          kubectl -n infra rollout status statefulset/main-postgres --timeout=300s
+
+      - name: Show database resources
+        if: always()
+        run: kubectl -n infra get statefulset,pod,service,pvc -o wide
