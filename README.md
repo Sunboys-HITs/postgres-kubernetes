@@ -125,7 +125,7 @@ PostgreSQL connections preconfigured. Open:
 http://pgadmin.31.192.111.254.sslip.io
 ```
 
-The default web login is `admin@sunboys.local` with password
+The default web login is `admin@sunboys-hits.ru` with password
 `sunboys_pgadmin_password`. The database passwords are provided to pgAdmin
 from the generated Kubernetes Secrets. Replace the default web password before
 using this setup outside the development environment.

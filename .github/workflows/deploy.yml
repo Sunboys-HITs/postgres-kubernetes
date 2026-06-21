@@ -68,7 +68,7 @@ jobs:
             'APP_DB_USER=main_service' \
             "APP_DB_PASSWORD=$MAIN_DB_PASSWORD" \
             'SERVICE_DATABASES=main_service' \
-            'PGADMIN_DEFAULT_EMAIL=admin@sunboys.local' \
+            'PGADMIN_DEFAULT_EMAIL=admin@sunboys-hits.ru' \
             'PGADMIN_DEFAULT_PASSWORD=sunboys_pgadmin_password' \
             > k8s/overlays/main-service/secret.env
 
