@@ -2,6 +2,13 @@ namePrefix: main-
 
 resources:
   - ../../base
+  - pgadmin.yaml
+
+configMapGenerator:
+  - name: pgadmin-servers
+    namespace: infra
+    files:
+      - servers.json
 
 labels:
   - pairs:

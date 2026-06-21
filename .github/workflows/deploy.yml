@@ -68,6 +68,8 @@ jobs:
             'APP_DB_USER=main_service' \
             "APP_DB_PASSWORD=$MAIN_DB_PASSWORD" \
             'SERVICE_DATABASES=main_service' \
+            'PGADMIN_DEFAULT_EMAIL=admin@sunboys.local' \
+            'PGADMIN_DEFAULT_PASSWORD=sunboys_pgadmin_password' \
             > k8s/overlays/main-service/secret.env
 
       - name: Validate manifests
@@ -86,6 +88,7 @@ jobs:
         run: |
           kubectl -n infra rollout status statefulset/auth-postgres --timeout=300s
           kubectl -n infra rollout status statefulset/main-postgres --timeout=300s
+          kubectl -n infra rollout status deployment/main-pgadmin --timeout=300s
 
       - name: Reconcile database users and databases
         run: |
@@ -96,4 +99,4 @@ jobs:
 
       - name: Show database resources
         if: always()
-        run: kubectl -n infra get statefulset,pod,service,pvc -o wide
+        run: kubectl -n infra get deployment,statefulset,pod,service,ingress,pvc -o wide

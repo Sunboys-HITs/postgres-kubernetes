@@ -1,0 +1,119 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgadmin
+  namespace: infra
+  labels:
+    app.kubernetes.io/name: pgadmin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pgadmin
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pgadmin
+    spec:
+      initContainers:
+        - name: configure-pgpass
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              printf '%s\n' "main-postgres.infra.svc.cluster.local:5432:main_service:main_service:${MAIN_DB_PASSWORD}" > /var/lib/pgadmin/pgpass
+              printf '%s\n' "auth-postgres.infra.svc.cluster.local:5432:auth_service:auth_service:${AUTH_DB_PASSWORD}" >> /var/lib/pgadmin/pgpass
+              chown 5050:5050 /var/lib/pgadmin/pgpass
+              chmod 0600 /var/lib/pgadmin/pgpass
+          env:
+            - name: MAIN_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: APP_DB_PASSWORD
+            - name: AUTH_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: auth-postgres-secret
+                  key: APP_DB_PASSWORD
+          volumeMounts:
+            - name: pgadmin-data
+              mountPath: /var/lib/pgadmin
+      containers:
+        - name: pgadmin
+          image: dpage/pgadmin4:9.4
+          ports:
+            - name: http
+              containerPort: 80
+          env:
+            - name: PGADMIN_DEFAULT_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: PGADMIN_DEFAULT_EMAIL
+            - name: PGADMIN_DEFAULT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: PGADMIN_DEFAULT_PASSWORD
+            - name: PGADMIN_SERVER_JSON_FILE
+              value: /pgadmin4/servers.json
+          volumeMounts:
+            - name: pgadmin-data
+              mountPath: /var/lib/pgadmin
+            - name: pgadmin-servers
+              mountPath: /pgadmin4/servers.json
+              subPath: servers.json
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /misc/ping
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: pgadmin-data
+          emptyDir: {}
+        - name: pgadmin-servers
+          configMap:
+            name: pgadmin-servers
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgadmin
+  namespace: infra
+spec:
+  selector:
+    app.kubernetes.io/name: pgadmin
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pgadmin
+  namespace: infra
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: pgadmin.31.192.111.254.sslip.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: pgadmin
+                port:
+                  number: 80

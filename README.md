@@ -116,6 +116,20 @@ Main service target:
 Host=main-postgres.infra.svc.cluster.local;Port=5432;Database=main_service;Username=main_service;Password=change_me_main
 ```
 
+## pgAdmin
+
+The `main-service` overlay deploys pgAdmin with both Main and Authorization
+PostgreSQL connections preconfigured. Open:
+
+```text
+http://pgadmin.31.192.111.254.sslip.io
+```
+
+The default web login is `admin@sunboys.local` with password
+`sunboys_pgadmin_password`. The database passwords are provided to pgAdmin
+from the generated Kubernetes Secrets. Replace the default web password before
+using this setup outside the development environment.
+
 ## Configuration
 
 Target defaults are in each overlay's `secret.env`.

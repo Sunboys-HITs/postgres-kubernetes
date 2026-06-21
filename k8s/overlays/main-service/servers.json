@@ -1,0 +1,24 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "SUNBOYS Main PostgreSQL",
+      "Group": "SUNBOYS",
+      "Host": "main-postgres.infra.svc.cluster.local",
+      "Port": 5432,
+      "MaintenanceDB": "main_service",
+      "Username": "main_service",
+      "SSLMode": "prefer",
+      "PassFile": "/var/lib/pgadmin/pgpass"
+    },
+    "2": {
+      "Name": "SUNBOYS Auth PostgreSQL",
+      "Group": "SUNBOYS",
+      "Host": "auth-postgres.infra.svc.cluster.local",
+      "Port": 5432,
+      "MaintenanceDB": "auth_service",
+      "Username": "auth_service",
+      "SSLMode": "prefer",
+      "PassFile": "/var/lib/pgadmin/pgpass"
+    }
+  }
+}
